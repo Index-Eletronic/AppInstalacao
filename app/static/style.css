@@ -35,7 +35,18 @@ h1 {
 form {
     display: flex;
     flex-direction: column;
-    gap: 10px;
+    gap: 14px;
+}
+
+.campo-bloco {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+
+.campo-bloco label {
+    font-weight: bold;
+    color: #111827;
 }
 
 input, textarea, button {
@@ -48,6 +59,11 @@ input, textarea, button {
 textarea {
     min-height: 120px;
     resize: vertical;
+}
+
+input[readonly], textarea[readonly] {
+    background: #f3f4f6;
+    color: #4b5563;
 }
 
 button, .link-botao {
@@ -97,6 +113,18 @@ th, td {
     display: flex;
     gap: 10px;
     flex-wrap: wrap;
+}
+
+.consulta-box {
+    margin-top: 16px;
+    padding: 12px;
+    border-radius: 10px;
+    background: #eef2ff;
+    border: 1px solid #c7d2fe;
+}
+
+.consulta-box p {
+    margin: 6px 0;
 }
 
 @media (max-width: 720px) {

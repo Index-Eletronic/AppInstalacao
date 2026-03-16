@@ -2,7 +2,7 @@ from datetime import datetime
 
 from bson import ObjectId
 from fastapi import FastAPI, Request, Form
-from fastapi.responses import HTMLResponse, RedirectResponse
+from fastapi.responses import HTMLResponse, RedirectResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 
@@ -115,6 +115,13 @@ async def cadastrar(
             "sucesso": ""
         })
 
+    if len(senha.encode("utf-8")) > 72:
+        return templates.TemplateResponse("cadastro.html", {
+            "request": request,
+            "erro": "A senha deve ter no máximo 72 bytes.",
+            "sucesso": ""
+        })
+
     existente = await db.usuarios.find_one({"cpf": cpf})
     if existente:
         return templates.TemplateResponse("cadastro.html", {
@@ -158,8 +165,56 @@ async def dashboard(request: Request):
         "request": request,
         "usuario": usuario,
         "mensagem": "",
-        "erro": ""
+        "erro": "",
+        "limpar_formulario": False
     })
+
+
+@app.get("/instalacoes/consulta-qr/{qr_id}")
+async def consultar_qr(qr_id: str, request: Request):
+    usuario = await buscar_usuario_logado(request)
+    if not usuario:
+        return JSONResponse(
+            status_code=401,
+            content={"ok": False, "erro": "Usuário não autenticado."}
+        )
+
+    registro = await db.instalacoes.find_one({
+        "usuario_id": str(usuario["_id"]),
+        "qr_id": qr_id.strip()
+    })
+
+    if not registro:
+        return {
+            "ok": True,
+            "existe": False,
+            "status": "novo",
+            "mensagem": "ID novo. Ao salvar, esta data será registrada como data inicial.",
+            "data_inicial_instalacao": None,
+            "data_final_instalacao": None
+        }
+
+    data_inicial = registro.get("data_inicial_instalacao")
+    data_final = registro.get("data_final_instalacao")
+
+    if data_inicial and not data_final:
+        status = "aguardando_data_final"
+        mensagem = "Este ID já possui data inicial. Ao salvar, a data informada será registrada como data final."
+    elif data_inicial and data_final:
+        status = "concluido"
+        mensagem = "Este ID já possui data inicial e data final salvas."
+    else:
+        status = "aguardando_data_inicial"
+        mensagem = "Este ID existe, mas ainda não possui data inicial. Ao salvar, a data informada será registrada como data inicial."
+
+    return {
+        "ok": True,
+        "existe": True,
+        "status": status,
+        "mensagem": mensagem,
+        "data_inicial_instalacao": data_inicial.strftime("%Y-%m-%d") if data_inicial else None,
+        "data_final_instalacao": data_final.strftime("%Y-%m-%d") if data_final else None
+    }
 
 
 @app.post("/instalacoes", response_class=HTMLResponse)
@@ -170,45 +225,82 @@ async def salvar_instalacao(
     cliente: str = Form(...),
     produto: str = Form(...),
     projetista: str = Form(""),
-    data_inicial_instalacao: str = Form(""),
-    data_final_instalacao: str = Form("")
+    data_instalacao: str = Form(...)
 ):
     usuario = await buscar_usuario_logado(request)
     if not usuario:
         return RedirectResponse(url="/login", status_code=303)
 
     try:
-        dt_inicial = parse_date(data_inicial_instalacao) if data_inicial_instalacao else None
-        dt_final = parse_date(data_final_instalacao) if data_final_instalacao else None
-
-        if dt_inicial and dt_final and dt_final < dt_inicial:
+        if not data_instalacao:
             return templates.TemplateResponse("dashboard.html", {
                 "request": request,
                 "usuario": usuario,
                 "mensagem": "",
-                "erro": "A data final não pode ser menor que a data inicial."
+                "erro": "Preencha a data da instalação.",
+                "limpar_formulario": False
             })
 
-        instalacao = {
-            "usuario_id": str(usuario["_id"]),
-            "usuario_nome": usuario["nome"],
-            "qr_id": qr_id.strip(),
-            "data_qr": parse_date(data_qr) if data_qr else None,
-            "cliente": cliente.strip(),
-            "produto": produto.strip(),
-            "projetista": projetista.strip() or None,
-            "data_inicial_instalacao": dt_inicial,
-            "data_final_instalacao": dt_final,
-            "criado_em": datetime.utcnow()
-        }
+        dt_instalacao = parse_date(data_instalacao)
 
-        await db.instalacoes.insert_one(instalacao)
+        registro_existente = await db.instalacoes.find_one({
+            "usuario_id": str(usuario["_id"]),
+            "qr_id": qr_id.strip()
+        })
+
+        if registro_existente:
+            update_data = {}
+
+            if not registro_existente.get("data_inicial_instalacao"):
+                update_data["data_inicial_instalacao"] = dt_instalacao
+            elif not registro_existente.get("data_final_instalacao"):
+                if dt_instalacao < registro_existente["data_inicial_instalacao"]:
+                    return templates.TemplateResponse("dashboard.html", {
+                        "request": request,
+                        "usuario": usuario,
+                        "mensagem": "",
+                        "erro": "A data final não pode ser menor que a data inicial.",
+                        "limpar_formulario": False
+                    })
+                update_data["data_final_instalacao"] = dt_instalacao
+            else:
+                return templates.TemplateResponse("dashboard.html", {
+                    "request": request,
+                    "usuario": usuario,
+                    "mensagem": "",
+                    "erro": "Este QR já possui data inicial e data final salvas.",
+                    "limpar_formulario": False
+                })
+
+            await db.instalacoes.update_one(
+                {"_id": registro_existente["_id"]},
+                {"$set": update_data}
+            )
+
+            mensagem = "Data da instalação atualizada com sucesso."
+        else:
+            instalacao = {
+                "usuario_id": str(usuario["_id"]),
+                "usuario_nome": usuario["nome"],
+                "qr_id": qr_id.strip(),
+                "data_qr": parse_date(data_qr) if data_qr else None,
+                "cliente": cliente.strip(),
+                "produto": produto.strip(),
+                "projetista": projetista.strip() or None,
+                "data_inicial_instalacao": dt_instalacao,
+                "data_final_instalacao": None,
+                "criado_em": datetime.utcnow()
+            }
+
+            await db.instalacoes.insert_one(instalacao)
+            mensagem = "Instalação salva com sucesso."
 
         return templates.TemplateResponse("dashboard.html", {
             "request": request,
             "usuario": usuario,
-            "mensagem": "Instalação salva com sucesso.",
-            "erro": ""
+            "mensagem": mensagem,
+            "erro": "",
+            "limpar_formulario": True
         })
 
     except Exception as e:
@@ -217,7 +309,8 @@ async def salvar_instalacao(
             "request": request,
             "usuario": usuario,
             "mensagem": "",
-            "erro": "Erro ao salvar a instalação."
+            "erro": "Erro ao salvar a instalação.",
+            "limpar_formulario": False
         })
 
 

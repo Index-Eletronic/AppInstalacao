@@ -22,7 +22,8 @@
     {% endif %}
 
     <div class="scanner-box">
-        <h3>Leitura de QR pela câmera</h3>
+        <h3>Leitura de QR Code</h3>
+
         <div class="scanner-actions">
             <button type="button" onclick="iniciarScanner()">Abrir câmera</button>
             <button type="button" onclick="pararScanner()">Parar câmera</button>
@@ -30,25 +31,66 @@
 
         <div id="qr-reader" style="width: 100%; max-width: 420px; margin-top: 12px;"></div>
         <p id="scanner-status"></p>
+
+        <div id="qr-consulta-box" class="consulta-box" style="display: none;">
+            <p><strong>Situação do ID:</strong> <span id="qr-consulta-status"></span></p>
+            <p id="qr-consulta-mensagem"></p>
+            <p><strong>Data inicial:</strong> <span id="qr-data-inicial">-</span></p>
+            <p><strong>Data final:</strong> <span id="qr-data-final">-</span></p>
+        </div>
     </div>
 
     <form method="post" action="/instalacoes">
-        <textarea id="qr_texto" placeholder="Cole o texto do QR aqui"></textarea>
-        <button type="button" onclick="preencherQR()">Preencher dados do QR</button>
+        <div class="campo-bloco">
+            <label for="qr_texto">Conteúdo do QR:</label>
+            <textarea id="qr_texto" placeholder="Conteúdo do QR lido pela câmera" readonly></textarea>
+        </div>
 
-        <input type="text" name="qr_id" id="qr_id" placeholder="ID do QR" required>
-        <input type="date" name="data_qr" id="data_qr">
-        <input type="text" name="cliente" id="cliente" placeholder="Cliente" required>
-        <input type="text" name="produto" id="produto" placeholder="Produto" required>
-        <input type="text" name="projetista" id="projetista" placeholder="Projetista">
-        <input type="date" name="data_inicial_instalacao" id="data_inicial_instalacao">
-        <input type="date" name="data_final_instalacao" id="data_final_instalacao">
+        <div class="campo-bloco">
+            <label for="qr_id">ID:</label>
+            <input type="text" name="qr_id" id="qr_id" required readonly>
+        </div>
 
-        <button type="submit">Salvar</button>
+        <div class="campo-bloco">
+            <label for="data_qr">Data do QR:</label>
+            <input type="date" name="data_qr" id="data_qr" readonly>
+        </div>
+
+        <div class="campo-bloco">
+            <label for="cliente">Cliente:</label>
+            <input type="text" name="cliente" id="cliente" required readonly>
+        </div>
+
+        <div class="campo-bloco">
+            <label for="produto">Produto:</label>
+            <input type="text" name="produto" id="produto" required readonly>
+        </div>
+
+        <div class="campo-bloco">
+            <label for="projetista">Projetista:</label>
+            <input type="text" name="projetista" id="projetista" readonly>
+        </div>
+
+        <div class="campo-bloco">
+            <label for="data_instalacao">Data:</label>
+            <input type="date" name="data_instalacao" id="data_instalacao" required>
+        </div>
+
+        <button type="submit" id="btn-salvar">Salvar</button>
     </form>
 </div>
 {% endblock %}
 
 {% block extra_scripts %}
 <script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
+
+{% if limpar_formulario %}
+<script>
+    window.addEventListener("load", function () {
+        if (typeof limparFormularioPosSalvamento === "function") {
+            limparFormularioPosSalvamento();
+        }
+    });
+</script>
+{% endif %}
 {% endblock %}
