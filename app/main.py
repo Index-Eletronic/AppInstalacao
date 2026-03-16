@@ -41,6 +41,7 @@ async def startup():
     await db.usuarios.create_index("cpf", unique=True)
     await db.instalacoes.create_index("usuario_id")
     await db.instalacoes.create_index("qr_id")
+    await db.funcionarios_autorizados.create_index("cpf", unique=True)
 
 
 @app.get("/", response_class=HTMLResponse)
@@ -102,16 +103,23 @@ async def tela_cadastro(request: Request):
 @app.post("/cadastro", response_class=HTMLResponse)
 async def cadastrar(
     request: Request,
-    nome: str = Form(...),
     cpf: str = Form(...),
-    senha: str = Form(...)
+    senha: str = Form(...),
+    confirmar_senha: str = Form(...)
 ):
     cpf = limpar_cpf(cpf)
 
-    if not nome.strip() or not cpf or not senha.strip():
+    if not cpf or not senha.strip() or not confirmar_senha.strip():
         return templates.TemplateResponse("cadastro.html", {
             "request": request,
             "erro": "Preencha todos os campos.",
+            "sucesso": ""
+        })
+
+    if senha != confirmar_senha:
+        return templates.TemplateResponse("cadastro.html", {
+            "request": request,
+            "erro": "As senhas não conferem.",
             "sucesso": ""
         })
 
@@ -122,17 +130,32 @@ async def cadastrar(
             "sucesso": ""
         })
 
+    funcionario = await db.funcionarios_autorizados.find_one({"cpf": cpf})
+    if not funcionario:
+        return templates.TemplateResponse("cadastro.html", {
+            "request": request,
+            "erro": "CPF não autorizado para cadastro.",
+            "sucesso": ""
+        })
+
+    if not funcionario.get("ativo", False):
+        return templates.TemplateResponse("cadastro.html", {
+            "request": request,
+            "erro": "Este funcionário está inativo e não pode criar acesso.",
+            "sucesso": ""
+        })
+
     existente = await db.usuarios.find_one({"cpf": cpf})
     if existente:
         return templates.TemplateResponse("cadastro.html", {
             "request": request,
-            "erro": "CPF já cadastrado.",
+            "erro": "Este CPF já possui cadastro no sistema.",
             "sucesso": ""
         })
 
     try:
         usuario = {
-            "nome": nome.strip(),
+            "nome": funcionario.get("nome", "").strip(),
             "cpf": cpf,
             "senha_hash": gerar_hash_senha(senha),
             "criado_em": datetime.utcnow()
@@ -143,7 +166,7 @@ async def cadastrar(
         return templates.TemplateResponse("cadastro.html", {
             "request": request,
             "erro": "",
-            "sucesso": "Cadastro realizado com sucesso."
+            "sucesso": f"Cadastro realizado com sucesso para {usuario['nome']}."
         })
 
     except Exception as e:

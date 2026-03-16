@@ -3,11 +3,22 @@
 {% block content %}
 <div class="card">
     <h1>Cadastro</h1>
+
     <form method="post" action="/cadastro">
-        <input type="text" name="nome" placeholder="Nome" required>
         <input type="text" name="cpf" placeholder="CPF" required>
-        <input type="password" name="senha" placeholder="Senha" required>
+        <input type="password" name="senha" placeholder="Criar senha" required>
+        <input type="password" name="confirmar_senha" placeholder="Confirmar senha" required>
         <button type="submit">Cadastrar</button>
     </form>
+
+    {% if erro %}
+    <p class="erro">{{ erro }}</p>
+    {% endif %}
+
+    {% if sucesso %}
+    <p class="sucesso">{{ sucesso }}</p>
+    {% endif %}
+
+    <a href="/login">Voltar ao login</a>
 </div>
 {% endblock %}
