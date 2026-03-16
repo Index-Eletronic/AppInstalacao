@@ -36,17 +36,11 @@
                 <td>{{ item.qr_id }}</td>
                 <td>{{ item.cliente }}</td>
                 <td>{{ item.produto }}</td>
-                <td>{{ item.projetista or '' }}</td>
-                <td>{{ item.data_inicial_instalacao.strftime('%d/%m/%Y') if item.data_inicial_instalacao else '' }}</td>
-                <td>{{ item.data_final_instalacao.strftime('%d/%m/%Y') if item.data_final_instalacao else '' }}</td>
+                <td>{{ item.projetista }}</td>
+                <td>{{ item.data_inicial_fmt }}</td>
+                <td>{{ item.data_final_fmt }}</td>
                 <td>
-                    {% if item.data_inicial_instalacao and item.data_final_instalacao %}
-                        <span class="status-badge status-concluido">Concluído</span>
-                    {% elif item.data_inicial_instalacao %}
-                        <span class="status-badge status-aberto">Aberto</span>
-                    {% else %}
-                        <span class="status-badge status-pendente">Pendente</span>
-                    {% endif %}
+                    <span class="status-badge {{ item.status_classe }}">{{ item.status }}</span>
                 </td>
             </tr>
             {% else %}
