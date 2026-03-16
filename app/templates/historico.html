@@ -1,0 +1,41 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="card">
+    <div class="topo">
+        <div>
+            <h1>Histórico</h1>
+            <p>Usuário: {{ usuario.nome }}</p>
+        </div>
+        <div>
+            <a class="link-botao" href="/dashboard">Voltar</a>
+            <a class="link-botao sair" href="/logout">Sair</a>
+        </div>
+    </div>
+
+    <table>
+        <thead>
+            <tr>
+                <th>ID QR</th>
+                <th>Cliente</th>
+                <th>Produto</th>
+                <th>Projetista</th>
+                <th>Data Inicial</th>
+                <th>Data Final</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for item in instalacoes %}
+            <tr>
+                <td>{{ item.qr_id }}</td>
+                <td>{{ item.cliente }}</td>
+                <td>{{ item.produto }}</td>
+                <td>{{ item.projetista or '' }}</td>
+                <td>{{ item.data_inicial_instalacao.strftime('%Y-%m-%d') if item.data_inicial_instalacao else '' }}</td>
+                <td>{{ item.data_final_instalacao.strftime('%Y-%m-%d') if item.data_final_instalacao else '' }}</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+{% endblock %}

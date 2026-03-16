@@ -1,0 +1,54 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="card">
+    <div class="topo">
+        <div>
+            <h1>Nova Instalação</h1>
+            <p>Usuário: {{ usuario.nome }}</p>
+        </div>
+        <div>
+            <a class="link-botao" href="/historico">Histórico</a>
+            <a class="link-botao sair" href="/logout">Sair</a>
+        </div>
+    </div>
+
+    {% if mensagem %}
+    <p class="sucesso">{{ mensagem }}</p>
+    {% endif %}
+
+    {% if erro %}
+    <p class="erro">{{ erro }}</p>
+    {% endif %}
+
+    <div class="scanner-box">
+        <h3>Leitura de QR pela câmera</h3>
+        <div class="scanner-actions">
+            <button type="button" onclick="iniciarScanner()">Abrir câmera</button>
+            <button type="button" onclick="pararScanner()">Parar câmera</button>
+        </div>
+
+        <div id="qr-reader" style="width: 100%; max-width: 420px; margin-top: 12px;"></div>
+        <p id="scanner-status"></p>
+    </div>
+
+    <form method="post" action="/instalacoes">
+        <textarea id="qr_texto" placeholder="Cole o texto do QR aqui"></textarea>
+        <button type="button" onclick="preencherQR()">Preencher dados do QR</button>
+
+        <input type="text" name="qr_id" id="qr_id" placeholder="ID do QR" required>
+        <input type="date" name="data_qr" id="data_qr">
+        <input type="text" name="cliente" id="cliente" placeholder="Cliente" required>
+        <input type="text" name="produto" id="produto" placeholder="Produto" required>
+        <input type="text" name="projetista" id="projetista" placeholder="Projetista">
+        <input type="date" name="data_inicial_instalacao" id="data_inicial_instalacao">
+        <input type="date" name="data_final_instalacao" id="data_final_instalacao">
+
+        <button type="submit">Salvar</button>
+    </form>
+</div>
+{% endblock %}
+
+{% block extra_scripts %}
+<script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
+{% endblock %}
