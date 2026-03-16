@@ -244,10 +244,7 @@ async def consultar_qr(qr_id: str, request: Request):
             content={"ok": False, "erro": "Usuário não autenticado."}
         )
 
-    registro = await db.instalacoes.find_one({
-        "usuario_id": str(usuario["_id"]),
-        "qr_id": qr_id.strip()
-    })
+    registro = await db.instalacoes.find_one({"qr_id": qr_id.strip()})
 
     if not registro:
         return {
@@ -327,7 +324,6 @@ async def salvar_instalacao(
         dt_instalacao = parse_date(data_instalacao)
 
         registro_existente = await db.instalacoes.find_one({
-            "usuario_id": str(usuario["_id"]),
             "qr_id": qr_id.strip()
         })
 
@@ -336,6 +332,8 @@ async def salvar_instalacao(
 
             if not registro_existente.get("data_inicial_instalacao"):
                 update_data["data_inicial_instalacao"] = dt_instalacao
+                update_data["instalador_inicial_cpf"] = usuario["cpf"]
+                update_data["instalador_inicial_nome"] = usuario["nome"]
             elif not registro_existente.get("data_final_instalacao"):
                 if dt_instalacao < registro_existente["data_inicial_instalacao"]:
                     return templates.TemplateResponse("dashboard.html", {
@@ -346,6 +344,8 @@ async def salvar_instalacao(
                         "limpar_formulario": False
                     })
                 update_data["data_final_instalacao"] = dt_instalacao
+                update_data["instalador_final_cpf"] = usuario["cpf"]
+                update_data["instalador_final_nome"] = usuario["nome"]
             else:
                 return templates.TemplateResponse("dashboard.html", {
                     "request": request,
@@ -372,6 +372,10 @@ async def salvar_instalacao(
                 "projetista": projetista.strip() or None,
                 "data_inicial_instalacao": dt_instalacao,
                 "data_final_instalacao": None,
+                "instalador_inicial_cpf": usuario["cpf"],
+                "instalador_inicial_nome": usuario["nome"],
+                "instalador_final_cpf": None,
+                "instalador_final_nome": None,
                 "criado_em": datetime.utcnow()
             }
 
@@ -406,7 +410,7 @@ async def historico(
     if not usuario:
         return RedirectResponse(url="/login", status_code=303)
 
-    filtro = {"usuario_id": str(usuario["_id"])}
+    filtro = {}
 
     busca = busca.strip()
     if busca:
