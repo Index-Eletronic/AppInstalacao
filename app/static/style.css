@@ -38,6 +38,18 @@ form {
     gap: 14px;
 }
 
+.busca-form {
+    display: flex;
+    gap: 10px;
+    margin-bottom: 16px;
+    flex-wrap: wrap;
+}
+
+.busca-form input {
+    flex: 1;
+    min-width: 220px;
+}
+
 .campo-bloco {
     display: flex;
     flex-direction: column;
@@ -123,8 +135,76 @@ th, td {
     border: 1px solid #c7d2fe;
 }
 
+.consulta-box-ok {
+    background: #ecfdf5;
+    border-color: #86efac;
+}
+
+.consulta-box-erro {
+    background: #fef2f2;
+    border-color: #fca5a5;
+}
+
 .consulta-box p {
     margin: 6px 0;
+}
+
+.qr-aviso-box {
+    margin-top: 16px;
+    padding: 16px;
+    border-radius: 12px;
+    border: 2px solid transparent;
+}
+
+.qr-aviso-box h2 {
+    margin: 0 0 8px 0;
+}
+
+.qr-aviso-box p {
+    margin: 0;
+    font-size: 16px;
+    font-weight: 500;
+}
+
+.qr-aviso-novo {
+    background: #eff6ff;
+    border-color: #93c5fd;
+    color: #1d4ed8;
+}
+
+.qr-aviso-aberto {
+    background: #fefce8;
+    border-color: #facc15;
+    color: #a16207;
+}
+
+.qr-aviso-concluido {
+    background: #ecfdf5;
+    border-color: #22c55e;
+    color: #15803d;
+}
+
+.status-badge {
+    display: inline-block;
+    padding: 6px 10px;
+    border-radius: 999px;
+    font-weight: bold;
+    font-size: 13px;
+}
+
+.status-aberto {
+    background: #fef3c7;
+    color: #92400e;
+}
+
+.status-concluido {
+    background: #dcfce7;
+    color: #166534;
+}
+
+.status-pendente {
+    background: #e5e7eb;
+    color: #374151;
 }
 
 @media (max-width: 720px) {

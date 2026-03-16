@@ -13,6 +13,11 @@
         </div>
     </div>
 
+    <form method="get" action="/historico" class="busca-form">
+        <input type="text" name="busca" placeholder="Buscar por cliente ou QR" value="{{ busca or '' }}">
+        <button type="submit">Buscar</button>
+    </form>
+
     <table>
         <thead>
             <tr>
@@ -36,13 +41,17 @@
                 <td>{{ item.data_final_instalacao.strftime('%d/%m/%Y') if item.data_final_instalacao else '' }}</td>
                 <td>
                     {% if item.data_inicial_instalacao and item.data_final_instalacao %}
-                        Concluído
+                        <span class="status-badge status-concluido">Concluído</span>
                     {% elif item.data_inicial_instalacao %}
-                        Aberto
+                        <span class="status-badge status-aberto">Aberto</span>
                     {% else %}
-                        Pendente
+                        <span class="status-badge status-pendente">Pendente</span>
                     {% endif %}
                 </td>
+            </tr>
+            {% else %}
+            <tr>
+                <td colspan="7">Nenhum registro encontrado.</td>
             </tr>
             {% endfor %}
         </tbody>

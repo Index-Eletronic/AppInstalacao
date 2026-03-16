@@ -42,6 +42,7 @@ function preencherCamposComTextoQR(texto) {
         consultarQrExistente(dados["ID"]);
     } else {
         limparConsultaQr();
+        limparAvisoQr();
     }
 }
 
@@ -87,6 +88,37 @@ function atualizarEstadoCampoData(status) {
     }
 }
 
+function mostrarAvisoQr(titulo, mensagem, tipo) {
+    const box = document.getElementById("qr-aviso-box");
+    const tituloEl = document.getElementById("qr-aviso-titulo");
+    const mensagemEl = document.getElementById("qr-aviso-mensagem");
+
+    if (!box || !tituloEl || !mensagemEl) return;
+
+    box.style.display = "block";
+    box.className = "qr-aviso-box";
+
+    if (tipo) {
+        box.classList.add(`qr-aviso-${tipo}`);
+    }
+
+    tituloEl.textContent = titulo || "";
+    mensagemEl.textContent = mensagem || "";
+}
+
+function limparAvisoQr() {
+    const box = document.getElementById("qr-aviso-box");
+    const tituloEl = document.getElementById("qr-aviso-titulo");
+    const mensagemEl = document.getElementById("qr-aviso-mensagem");
+
+    if (!box || !tituloEl || !mensagemEl) return;
+
+    box.style.display = "none";
+    box.className = "qr-aviso-box";
+    tituloEl.textContent = "";
+    mensagemEl.textContent = "";
+}
+
 function limparConsultaQr() {
     const box = document.getElementById("qr-consulta-box");
     const status = document.getElementById("qr-consulta-status");
@@ -124,6 +156,7 @@ function limparFormularioPosSalvamento() {
     }
 
     limparConsultaQr();
+    limparAvisoQr();
     setScannerStatus("Pronto para o próximo QR.");
 }
 
@@ -154,6 +187,7 @@ async function consultarQrExistente(qrId) {
         if (dataInicial) dataInicial.textContent = data.data_inicial_instalacao || "-";
         if (dataFinal) dataFinal.textContent = data.data_final_instalacao || "-";
 
+        mostrarAvisoQr(data.aviso_titulo, data.mensagem, data.aviso_tipo);
         atualizarEstadoCampoData(data.status || "");
     } catch (error) {
         console.error("Erro ao consultar QR:", error);
@@ -165,7 +199,54 @@ async function consultarQrExistente(qrId) {
         if (status) status.textContent = "erro";
         if (mensagem) mensagem.textContent = "Não foi possível consultar o ID no banco de dados.";
 
+        limparAvisoQr();
         atualizarEstadoCampoData("");
+    }
+}
+
+async function consultarCpfCadastro() {
+    const cpfInput = document.getElementById("cpf_cadastro");
+    const box = document.getElementById("cpf-consulta-box");
+    const mensagem = document.getElementById("cpf-consulta-mensagem");
+
+    if (!cpfInput || !box || !mensagem) return;
+
+    const cpf = cpfInput.value.replace(/\D/g, "");
+    if (!cpf) {
+        box.style.display = "none";
+        mensagem.textContent = "";
+        return;
+    }
+
+    try {
+        const response = await fetch(`/funcionarios/consultar-cpf/${encodeURIComponent(cpf)}`, {
+            method: "GET",
+            headers: {
+                "Accept": "application/json"
+            }
+        });
+
+        if (!response.ok) {
+            throw new Error("Erro ao consultar CPF.");
+        }
+
+        const data = await response.json();
+
+        box.style.display = "block";
+        box.className = "consulta-box";
+
+        if (data.ativo) {
+            box.classList.add("consulta-box-ok");
+        } else {
+            box.classList.add("consulta-box-erro");
+        }
+
+        mensagem.textContent = data.mensagem || "";
+    } catch (error) {
+        console.error("Erro ao consultar CPF:", error);
+        box.style.display = "block";
+        box.className = "consulta-box consulta-box-erro";
+        mensagem.textContent = "Não foi possível consultar o CPF.";
     }
 }
 
@@ -200,8 +281,7 @@ async function iniciarScanner() {
                 setScannerStatus("QR lido com sucesso.");
                 pararScanner();
             },
-            () => {
-            }
+            () => {}
         );
 
         scannerAtivo = true;

@@ -41,6 +41,7 @@ async def startup():
     await db.usuarios.create_index("cpf", unique=True)
     await db.instalacoes.create_index("usuario_id")
     await db.instalacoes.create_index("qr_id")
+    await db.instalacoes.create_index("cliente")
     await db.funcionarios_autorizados.create_index("cpf", unique=True)
 
 
@@ -96,8 +97,41 @@ async def tela_cadastro(request: Request):
     return templates.TemplateResponse("cadastro.html", {
         "request": request,
         "erro": "",
-        "sucesso": ""
+        "sucesso": "",
+        "funcionario_nome": ""
     })
+
+
+@app.get("/funcionarios/consultar-cpf/{cpf}")
+async def consultar_cpf_autorizado(cpf: str):
+    cpf = limpar_cpf(cpf)
+
+    funcionario = await db.funcionarios_autorizados.find_one({"cpf": cpf})
+    if not funcionario:
+        return {
+            "ok": True,
+            "encontrado": False,
+            "ativo": False,
+            "nome": "",
+            "mensagem": "CPF não autorizado para cadastro."
+        }
+
+    if not funcionario.get("ativo", False):
+        return {
+            "ok": True,
+            "encontrado": True,
+            "ativo": False,
+            "nome": funcionario.get("nome", ""),
+            "mensagem": "Funcionário encontrado, mas está inativo."
+        }
+
+    return {
+        "ok": True,
+        "encontrado": True,
+        "ativo": True,
+        "nome": funcionario.get("nome", ""),
+        "mensagem": f"Funcionário encontrado: {funcionario.get('nome', '')}"
+    }
 
 
 @app.post("/cadastro", response_class=HTMLResponse)
@@ -113,21 +147,24 @@ async def cadastrar(
         return templates.TemplateResponse("cadastro.html", {
             "request": request,
             "erro": "Preencha todos os campos.",
-            "sucesso": ""
+            "sucesso": "",
+            "funcionario_nome": ""
         })
 
     if senha != confirmar_senha:
         return templates.TemplateResponse("cadastro.html", {
             "request": request,
             "erro": "As senhas não conferem.",
-            "sucesso": ""
+            "sucesso": "",
+            "funcionario_nome": ""
         })
 
     if len(senha.encode("utf-8")) > 72:
         return templates.TemplateResponse("cadastro.html", {
             "request": request,
             "erro": "A senha deve ter no máximo 72 bytes.",
-            "sucesso": ""
+            "sucesso": "",
+            "funcionario_nome": ""
         })
 
     funcionario = await db.funcionarios_autorizados.find_one({"cpf": cpf})
@@ -135,14 +172,16 @@ async def cadastrar(
         return templates.TemplateResponse("cadastro.html", {
             "request": request,
             "erro": "CPF não autorizado para cadastro.",
-            "sucesso": ""
+            "sucesso": "",
+            "funcionario_nome": ""
         })
 
     if not funcionario.get("ativo", False):
         return templates.TemplateResponse("cadastro.html", {
             "request": request,
             "erro": "Este funcionário está inativo e não pode criar acesso.",
-            "sucesso": ""
+            "sucesso": "",
+            "funcionario_nome": funcionario.get("nome", "")
         })
 
     existente = await db.usuarios.find_one({"cpf": cpf})
@@ -150,7 +189,8 @@ async def cadastrar(
         return templates.TemplateResponse("cadastro.html", {
             "request": request,
             "erro": "Este CPF já possui cadastro no sistema.",
-            "sucesso": ""
+            "sucesso": "",
+            "funcionario_nome": funcionario.get("nome", "")
         })
 
     try:
@@ -166,7 +206,8 @@ async def cadastrar(
         return templates.TemplateResponse("cadastro.html", {
             "request": request,
             "erro": "",
-            "sucesso": f"Cadastro realizado com sucesso para {usuario['nome']}."
+            "sucesso": f"Cadastro realizado com sucesso para {usuario['nome']}.",
+            "funcionario_nome": usuario["nome"]
         })
 
     except Exception as e:
@@ -174,7 +215,8 @@ async def cadastrar(
         return templates.TemplateResponse("cadastro.html", {
             "request": request,
             "erro": f"Erro ao cadastrar: {e}",
-            "sucesso": ""
+            "sucesso": "",
+            "funcionario_nome": funcionario.get("nome", "")
         })
 
 
@@ -212,7 +254,9 @@ async def consultar_qr(qr_id: str, request: Request):
             "ok": True,
             "existe": False,
             "status": "novo",
-            "mensagem": "ID novo. Ao salvar, esta data será registrada como data inicial.",
+            "mensagem": "NOVO ID. Ao salvar, esta data será registrada como data inicial.",
+            "aviso_titulo": "NOVO ID",
+            "aviso_tipo": "novo",
             "data_inicial_instalacao": None,
             "data_final_instalacao": None
         }
@@ -221,22 +265,38 @@ async def consultar_qr(qr_id: str, request: Request):
     data_final = registro.get("data_final_instalacao")
 
     if data_inicial and not data_final:
-        status = "aguardando_data_final"
-        mensagem = "Este ID já possui data inicial. Ao salvar, a data informada será registrada como data final."
-    elif data_inicial and data_final:
-        status = "concluido"
-        mensagem = "Este ID já possui data inicial e data final salvas."
-    else:
-        status = "aguardando_data_inicial"
-        mensagem = "Este ID existe, mas ainda não possui data inicial. Ao salvar, a data informada será registrada como data inicial."
+        return {
+            "ok": True,
+            "existe": True,
+            "status": "aguardando_data_final",
+            "mensagem": "Este ID já possui data inicial. Ao salvar, a data informada será registrada como data final.",
+            "aviso_titulo": "AGUARDANDO DATA FINAL",
+            "aviso_tipo": "aberto",
+            "data_inicial_instalacao": data_inicial.strftime("%Y-%m-%d") if data_inicial else None,
+            "data_final_instalacao": None
+        }
+
+    if data_inicial and data_final:
+        return {
+            "ok": True,
+            "existe": True,
+            "status": "concluido",
+            "mensagem": "Este ID já possui data inicial e data final salvas.",
+            "aviso_titulo": "CONCLUÍDO",
+            "aviso_tipo": "concluido",
+            "data_inicial_instalacao": data_inicial.strftime("%Y-%m-%d") if data_inicial else None,
+            "data_final_instalacao": data_final.strftime("%Y-%m-%d") if data_final else None
+        }
 
     return {
         "ok": True,
         "existe": True,
-        "status": status,
-        "mensagem": mensagem,
-        "data_inicial_instalacao": data_inicial.strftime("%Y-%m-%d") if data_inicial else None,
-        "data_final_instalacao": data_final.strftime("%Y-%m-%d") if data_final else None
+        "status": "aguardando_data_inicial",
+        "mensagem": "Este ID existe, mas ainda não possui data inicial.",
+        "aviso_titulo": "AGUARDANDO DATA INICIAL",
+        "aviso_tipo": "novo",
+        "data_inicial_instalacao": None,
+        "data_final_instalacao": None
     }
 
 
@@ -338,21 +398,31 @@ async def salvar_instalacao(
 
 
 @app.get("/historico", response_class=HTMLResponse)
-async def historico(request: Request):
+async def historico(
+    request: Request,
+    busca: str = ""
+):
     usuario = await buscar_usuario_logado(request)
     if not usuario:
         return RedirectResponse(url="/login", status_code=303)
 
-    cursor = db.instalacoes.find({
-        "usuario_id": str(usuario["_id"])
-    }).sort("criado_em", -1)
+    filtro = {"usuario_id": str(usuario["_id"])}
 
+    busca = busca.strip()
+    if busca:
+        filtro["$or"] = [
+            {"cliente": {"$regex": busca, "$options": "i"}},
+            {"qr_id": {"$regex": busca, "$options": "i"}}
+        ]
+
+    cursor = db.instalacoes.find(filtro).sort("criado_em", -1)
     instalacoes = await cursor.to_list(length=200)
 
     return templates.TemplateResponse("historico.html", {
         "request": request,
         "usuario": usuario,
-        "instalacoes": instalacoes
+        "instalacoes": instalacoes,
+        "busca": busca
     })
 
 
