@@ -27,6 +27,17 @@ function prepararMascarasCpf() {
     });
 }
 
+function formatarDataBR(valor) {
+    if (!valor) return "-";
+
+    if (/^\d{4}-\d{2}-\d{2}$/.test(valor)) {
+        const [ano, mes, dia] = valor.split("-");
+        return `${dia}/${mes}/${ano}`;
+    }
+
+    return valor;
+}
+
 function preencherCamposComTextoQR(texto) {
     const linhas = texto.split("\n");
 
@@ -210,8 +221,8 @@ async function consultarQrExistente(qrId) {
         if (box) box.style.display = "block";
         if (status) status.textContent = data.status || "-";
         if (mensagem) mensagem.textContent = data.mensagem || "";
-        if (dataInicial) dataInicial.textContent = data.data_inicial_instalacao || "-";
-        if (dataFinal) dataFinal.textContent = data.data_final_instalacao || "-";
+        if (dataInicial) dataInicial.textContent = formatarDataBR(data.data_inicial_instalacao);
+        if (dataFinal) dataFinal.textContent = formatarDataBR(data.data_final_instalacao);
 
         mostrarAvisoQr(data.aviso_titulo, data.mensagem, data.aviso_tipo);
         atualizarEstadoCampoData(data.status || "");
