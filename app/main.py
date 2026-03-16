@@ -36,7 +36,7 @@ async def buscar_usuario_logado(request: Request):
         return None
 
 
-def usuario_e_admin(usuario: dict | None) -> bool:
+def usuario_e_admin(usuario) -> bool:
     return bool(usuario and usuario.get("admin", False))
 
 
