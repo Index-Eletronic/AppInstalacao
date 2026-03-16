@@ -5,14 +5,14 @@
     <h1>Cadastro</h1>
 
     <form method="post" action="/cadastro">
-        <input type="text" name="cpf" id="cpf_cadastro" placeholder="CPF" required onblur="consultarCpfCadastro()">
+        <input type="text" name="cpf" id="cpf_cadastro" placeholder="CPF" required maxlength="14" onblur="consultarCpfCadastro()">
 
         <div id="cpf-consulta-box" class="consulta-box" style="display: none;">
             <p id="cpf-consulta-mensagem"></p>
         </div>
 
         {% if funcionario_nome %}
-        <div class="consulta-box">
+        <div class="consulta-box consulta-box-ok">
             <p><strong>Funcionário encontrado:</strong> {{ funcionario_nome }}</p>
         </div>
         {% endif %}

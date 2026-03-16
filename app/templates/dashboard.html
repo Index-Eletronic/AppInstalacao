@@ -7,9 +7,27 @@
             <h1>Nova Instalação</h1>
             <p>Usuário: {{ usuario.nome }}</p>
         </div>
-        <div>
+        <div class="topo-acoes">
+            {% if usuario.admin %}
+            <a class="link-botao admin" href="/admin">Painel Admin</a>
+            {% endif %}
             <a class="link-botao" href="/historico">Histórico</a>
             <a class="link-botao sair" href="/logout">Sair</a>
+        </div>
+    </div>
+
+    <div class="resumo-grid">
+        <div class="resumo-card resumo-total">
+            <span class="resumo-titulo">Total</span>
+            <strong>{{ resumo_total }}</strong>
+        </div>
+        <div class="resumo-card resumo-aberto">
+            <span class="resumo-titulo">Abertos</span>
+            <strong>{{ resumo_abertos }}</strong>
+        </div>
+        <div class="resumo-card resumo-concluido">
+            <span class="resumo-titulo">Concluídos</span>
+            <strong>{{ resumo_concluidos }}</strong>
         </div>
     </div>
 

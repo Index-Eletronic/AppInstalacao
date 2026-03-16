@@ -1,0 +1,84 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="card">
+    <div class="topo">
+        <div>
+            <h1>Painel Admin</h1>
+            <p>Usuário: {{ usuario.nome }}</p>
+        </div>
+        <div class="topo-acoes">
+            <a class="link-botao" href="/dashboard">Voltar</a>
+            <a class="link-botao sair" href="/logout">Sair</a>
+        </div>
+    </div>
+
+    <div class="admin-grid">
+        <div class="admin-box">
+            <h3>Novo funcionário autorizado</h3>
+            <form method="post" action="/admin/funcionarios">
+                <input type="text" name="nome" placeholder="Nome do funcionário" required>
+                <input type="text" name="cpf" id="cpf_admin" placeholder="CPF" required maxlength="14">
+                <select name="ativo">
+                    <option value="true">Ativo</option>
+                    <option value="false">Inativo</option>
+                </select>
+                <button type="submit">Cadastrar funcionário</button>
+            </form>
+        </div>
+
+        <div class="admin-box">
+            <h3>Buscar funcionário</h3>
+            <form method="get" action="/admin" class="busca-form">
+                <input type="text" name="busca" placeholder="Buscar por nome ou CPF" value="{{ busca or '' }}">
+                <button type="submit">Buscar</button>
+            </form>
+        </div>
+    </div>
+
+    {% if erro %}
+    <p class="erro">{{ erro }}</p>
+    {% endif %}
+
+    {% if sucesso %}
+    <p class="sucesso">{{ sucesso }}</p>
+    {% endif %}
+
+    <table>
+        <thead>
+            <tr>
+                <th>Nome</th>
+                <th>CPF</th>
+                <th>Status</th>
+                <th>Ação</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for f in funcionarios %}
+            <tr>
+                <td>{{ f.nome }}</td>
+                <td>{{ f.cpf }}</td>
+                <td>
+                    {% if f.ativo %}
+                        <span class="status-badge status-concluido">Ativo</span>
+                    {% else %}
+                        <span class="status-badge status-pendente">Inativo</span>
+                    {% endif %}
+                </td>
+                <td>
+                    <form method="post" action="/admin/funcionarios/{{ f._id }}/toggle">
+                        <button type="submit">
+                            {% if f.ativo %}Inativar{% else %}Ativar{% endif %}
+                        </button>
+                    </form>
+                </td>
+            </tr>
+            {% else %}
+            <tr>
+                <td colspan="4">Nenhum funcionário encontrado.</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+{% endblock %}

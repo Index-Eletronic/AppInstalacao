@@ -36,6 +36,10 @@ async def buscar_usuario_logado(request: Request):
         return None
 
 
+def usuario_e_admin(usuario: dict | None) -> bool:
+    return bool(usuario and usuario.get("admin", False))
+
+
 @app.on_event("startup")
 async def startup():
     await db.usuarios.create_index("cpf", unique=True)
@@ -68,6 +72,12 @@ async def login(
     senha: str = Form(...)
 ):
     cpf = limpar_cpf(cpf)
+
+    if len(cpf) != 11:
+        return templates.TemplateResponse("login.html", {
+            "request": request,
+            "erro": "CPF inválido."
+        })
 
     usuario = await db.usuarios.find_one({"cpf": cpf})
 
@@ -105,6 +115,15 @@ async def tela_cadastro(request: Request):
 @app.get("/funcionarios/consultar-cpf/{cpf}")
 async def consultar_cpf_autorizado(cpf: str):
     cpf = limpar_cpf(cpf)
+
+    if len(cpf) != 11:
+        return {
+            "ok": True,
+            "encontrado": False,
+            "ativo": False,
+            "nome": "",
+            "mensagem": "CPF inválido."
+        }
 
     funcionario = await db.funcionarios_autorizados.find_one({"cpf": cpf})
     if not funcionario:
@@ -147,6 +166,14 @@ async def cadastrar(
         return templates.TemplateResponse("cadastro.html", {
             "request": request,
             "erro": "Preencha todos os campos.",
+            "sucesso": "",
+            "funcionario_nome": ""
+        })
+
+    if len(cpf) != 11:
+        return templates.TemplateResponse("cadastro.html", {
+            "request": request,
+            "erro": "CPF inválido.",
             "sucesso": "",
             "funcionario_nome": ""
         })
@@ -198,6 +225,7 @@ async def cadastrar(
             "nome": funcionario.get("nome", "").strip(),
             "cpf": cpf,
             "senha_hash": gerar_hash_senha(senha),
+            "admin": False,
             "criado_em": datetime.utcnow()
         }
 
@@ -226,13 +254,139 @@ async def dashboard(request: Request):
     if not usuario:
         return RedirectResponse(url="/login", status_code=303)
 
+    filtro_usuario = {"usuario_id": str(usuario["_id"])}
+    abertos = await db.instalacoes.count_documents({
+        **filtro_usuario,
+        "data_inicial_instalacao": {"$ne": None},
+        "data_final_instalacao": None
+    })
+    concluidos = await db.instalacoes.count_documents({
+        **filtro_usuario,
+        "data_inicial_instalacao": {"$ne": None},
+        "data_final_instalacao": {"$ne": None}
+    })
+    total = await db.instalacoes.count_documents(filtro_usuario)
+
     return templates.TemplateResponse("dashboard.html", {
         "request": request,
         "usuario": usuario,
         "mensagem": "",
         "erro": "",
-        "limpar_formulario": False
+        "limpar_formulario": False,
+        "resumo_abertos": abertos,
+        "resumo_concluidos": concluidos,
+        "resumo_total": total
     })
+
+
+@app.get("/admin", response_class=HTMLResponse)
+async def admin_painel(
+    request: Request,
+    busca: str = ""
+):
+    usuario = await buscar_usuario_logado(request)
+    if not usuario:
+        return RedirectResponse(url="/login", status_code=303)
+
+    if not usuario_e_admin(usuario):
+        return RedirectResponse(url="/dashboard", status_code=303)
+
+    filtro = {}
+    busca = busca.strip()
+    if busca:
+        filtro["$or"] = [
+            {"nome": {"$regex": busca, "$options": "i"}},
+            {"cpf": {"$regex": limpar_cpf(busca), "$options": "i"}}
+        ]
+
+    cursor = db.funcionarios_autorizados.find(filtro).sort("nome", 1)
+    funcionarios = await cursor.to_list(length=300)
+
+    return templates.TemplateResponse("admin.html", {
+        "request": request,
+        "usuario": usuario,
+        "funcionarios": funcionarios,
+        "busca": busca,
+        "erro": "",
+        "sucesso": ""
+    })
+
+
+@app.post("/admin/funcionarios", response_class=HTMLResponse)
+async def admin_criar_funcionario(
+    request: Request,
+    nome: str = Form(...),
+    cpf: str = Form(...),
+    ativo: str = Form("true")
+):
+    usuario = await buscar_usuario_logado(request)
+    if not usuario:
+        return RedirectResponse(url="/login", status_code=303)
+
+    if not usuario_e_admin(usuario):
+        return RedirectResponse(url="/dashboard", status_code=303)
+
+    cpf = limpar_cpf(cpf)
+    nome = nome.strip()
+
+    if not nome or len(cpf) != 11:
+        cursor = db.funcionarios_autorizados.find({}).sort("nome", 1)
+        funcionarios = await cursor.to_list(length=300)
+        return templates.TemplateResponse("admin.html", {
+            "request": request,
+            "usuario": usuario,
+            "funcionarios": funcionarios,
+            "busca": "",
+            "erro": "Informe nome e CPF válido.",
+            "sucesso": ""
+        })
+
+    existe = await db.funcionarios_autorizados.find_one({"cpf": cpf})
+    if existe:
+        cursor = db.funcionarios_autorizados.find({}).sort("nome", 1)
+        funcionarios = await cursor.to_list(length=300)
+        return templates.TemplateResponse("admin.html", {
+            "request": request,
+            "usuario": usuario,
+            "funcionarios": funcionarios,
+            "busca": "",
+            "erro": "Este CPF já está na lista de autorizados.",
+            "sucesso": ""
+        })
+
+    await db.funcionarios_autorizados.insert_one({
+        "nome": nome,
+        "cpf": cpf,
+        "ativo": ativo == "true",
+        "criado_em": datetime.utcnow()
+    })
+
+    return RedirectResponse(url="/admin", status_code=303)
+
+
+@app.post("/admin/funcionarios/{funcionario_id}/toggle", response_class=HTMLResponse)
+async def admin_toggle_funcionario(
+    funcionario_id: str,
+    request: Request
+):
+    usuario = await buscar_usuario_logado(request)
+    if not usuario:
+        return RedirectResponse(url="/login", status_code=303)
+
+    if not usuario_e_admin(usuario):
+        return RedirectResponse(url="/dashboard", status_code=303)
+
+    try:
+        funcionario = await db.funcionarios_autorizados.find_one({"_id": ObjectId(funcionario_id)})
+        if funcionario:
+            await db.funcionarios_autorizados.update_one(
+                {"_id": funcionario["_id"]},
+                {"$set": {"ativo": not funcionario.get("ativo", False)}}
+            )
+    except Exception as e:
+        print("ERRO AO ALTERAR FUNCIONARIO:", e)
+
+    return RedirectResponse(url="/admin", status_code=303)
 
 
 @app.get("/instalacoes/consulta-qr/{qr_id}")
@@ -313,19 +467,31 @@ async def salvar_instalacao(
 
     try:
         if not data_instalacao:
+            abertos = await db.instalacoes.count_documents({
+                "usuario_id": str(usuario["_id"]),
+                "data_inicial_instalacao": {"$ne": None},
+                "data_final_instalacao": None
+            })
+            concluidos = await db.instalacoes.count_documents({
+                "usuario_id": str(usuario["_id"]),
+                "data_inicial_instalacao": {"$ne": None},
+                "data_final_instalacao": {"$ne": None}
+            })
+            total = await db.instalacoes.count_documents({"usuario_id": str(usuario["_id"])})
+
             return templates.TemplateResponse("dashboard.html", {
                 "request": request,
                 "usuario": usuario,
                 "mensagem": "",
                 "erro": "Preencha a data da instalação.",
-                "limpar_formulario": False
+                "limpar_formulario": False,
+                "resumo_abertos": abertos,
+                "resumo_concluidos": concluidos,
+                "resumo_total": total
             })
 
         dt_instalacao = parse_date(data_instalacao)
-
-        registro_existente = await db.instalacoes.find_one({
-            "qr_id": qr_id.strip()
-        })
+        registro_existente = await db.instalacoes.find_one({"qr_id": qr_id.strip()})
 
         if registro_existente:
             update_data = {}
@@ -336,23 +502,53 @@ async def salvar_instalacao(
                 update_data["instalador_inicial_nome"] = usuario["nome"]
             elif not registro_existente.get("data_final_instalacao"):
                 if dt_instalacao < registro_existente["data_inicial_instalacao"]:
+                    abertos = await db.instalacoes.count_documents({
+                        "usuario_id": str(usuario["_id"]),
+                        "data_inicial_instalacao": {"$ne": None},
+                        "data_final_instalacao": None
+                    })
+                    concluidos = await db.instalacoes.count_documents({
+                        "usuario_id": str(usuario["_id"]),
+                        "data_inicial_instalacao": {"$ne": None},
+                        "data_final_instalacao": {"$ne": None}
+                    })
+                    total = await db.instalacoes.count_documents({"usuario_id": str(usuario["_id"])})
+
                     return templates.TemplateResponse("dashboard.html", {
                         "request": request,
                         "usuario": usuario,
                         "mensagem": "",
                         "erro": "A data final não pode ser menor que a data inicial.",
-                        "limpar_formulario": False
+                        "limpar_formulario": False,
+                        "resumo_abertos": abertos,
+                        "resumo_concluidos": concluidos,
+                        "resumo_total": total
                     })
                 update_data["data_final_instalacao"] = dt_instalacao
                 update_data["instalador_final_cpf"] = usuario["cpf"]
                 update_data["instalador_final_nome"] = usuario["nome"]
             else:
+                abertos = await db.instalacoes.count_documents({
+                    "usuario_id": str(usuario["_id"]),
+                    "data_inicial_instalacao": {"$ne": None},
+                    "data_final_instalacao": None
+                })
+                concluidos = await db.instalacoes.count_documents({
+                    "usuario_id": str(usuario["_id"]),
+                    "data_inicial_instalacao": {"$ne": None},
+                    "data_final_instalacao": {"$ne": None}
+                })
+                total = await db.instalacoes.count_documents({"usuario_id": str(usuario["_id"])})
+
                 return templates.TemplateResponse("dashboard.html", {
                     "request": request,
                     "usuario": usuario,
                     "mensagem": "",
                     "erro": "Este QR já possui data inicial e data final salvas.",
-                    "limpar_formulario": False
+                    "limpar_formulario": False,
+                    "resumo_abertos": abertos,
+                    "resumo_concluidos": concluidos,
+                    "resumo_total": total
                 })
 
             await db.instalacoes.update_one(
@@ -382,22 +578,53 @@ async def salvar_instalacao(
             await db.instalacoes.insert_one(instalacao)
             mensagem = "Instalação salva com sucesso."
 
+        abertos = await db.instalacoes.count_documents({
+            "usuario_id": str(usuario["_id"]),
+            "data_inicial_instalacao": {"$ne": None},
+            "data_final_instalacao": None
+        })
+        concluidos = await db.instalacoes.count_documents({
+            "usuario_id": str(usuario["_id"]),
+            "data_inicial_instalacao": {"$ne": None},
+            "data_final_instalacao": {"$ne": None}
+        })
+        total = await db.instalacoes.count_documents({"usuario_id": str(usuario["_id"])})
+
         return templates.TemplateResponse("dashboard.html", {
             "request": request,
             "usuario": usuario,
             "mensagem": mensagem,
             "erro": "",
-            "limpar_formulario": True
+            "limpar_formulario": True,
+            "resumo_abertos": abertos,
+            "resumo_concluidos": concluidos,
+            "resumo_total": total
         })
 
     except Exception as e:
         print("ERRO AO SALVAR INSTALACAO:", e)
+
+        abertos = await db.instalacoes.count_documents({
+            "usuario_id": str(usuario["_id"]),
+            "data_inicial_instalacao": {"$ne": None},
+            "data_final_instalacao": None
+        })
+        concluidos = await db.instalacoes.count_documents({
+            "usuario_id": str(usuario["_id"]),
+            "data_inicial_instalacao": {"$ne": None},
+            "data_final_instalacao": {"$ne": None}
+        })
+        total = await db.instalacoes.count_documents({"usuario_id": str(usuario["_id"])})
+
         return templates.TemplateResponse("dashboard.html", {
             "request": request,
             "usuario": usuario,
             "mensagem": "",
             "erro": "Erro ao salvar a instalação.",
-            "limpar_formulario": False
+            "limpar_formulario": False,
+            "resumo_abertos": abertos,
+            "resumo_concluidos": concluidos,
+            "resumo_total": total
         })
 
 

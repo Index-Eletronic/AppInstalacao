@@ -6,7 +6,7 @@ body {
 }
 
 .container {
-    max-width: 980px;
+    max-width: 1100px;
     margin: 40px auto;
     padding: 20px;
 }
@@ -24,6 +24,12 @@ body {
     align-items: center;
     gap: 12px;
     margin-bottom: 16px;
+    flex-wrap: wrap;
+}
+
+.topo-acoes {
+    display: flex;
+    gap: 10px;
     flex-wrap: wrap;
 }
 
@@ -61,7 +67,7 @@ form {
     color: #111827;
 }
 
-input, textarea, button {
+input, textarea, button, select {
     font-size: 16px;
     padding: 12px;
     border-radius: 8px;
@@ -89,6 +95,10 @@ button, .link-botao {
     border-radius: 8px;
 }
 
+.admin {
+    background: #1d4ed8;
+}
+
 .sair {
     background: #7f1d1d;
 }
@@ -99,6 +109,60 @@ button, .link-botao {
 
 .sucesso {
     color: #15803d;
+}
+
+.resumo-grid {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(180px, 1fr));
+    gap: 14px;
+    margin-bottom: 20px;
+}
+
+.resumo-card {
+    border-radius: 12px;
+    padding: 18px;
+    color: #111827;
+    border: 1px solid #e5e7eb;
+}
+
+.resumo-card strong {
+    display: block;
+    font-size: 28px;
+    margin-top: 8px;
+}
+
+.resumo-titulo {
+    font-size: 14px;
+    color: #4b5563;
+}
+
+.resumo-total {
+    background: #eff6ff;
+    border-color: #bfdbfe;
+}
+
+.resumo-aberto {
+    background: #fefce8;
+    border-color: #fde68a;
+}
+
+.resumo-concluido {
+    background: #ecfdf5;
+    border-color: #86efac;
+}
+
+.admin-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 16px;
+    margin-bottom: 20px;
+}
+
+.admin-box {
+    background: #f9fafb;
+    border: 1px solid #e5e7eb;
+    border-radius: 12px;
+    padding: 16px;
 }
 
 table {
@@ -211,6 +275,11 @@ th, td {
     .container {
         margin: 20px auto;
         padding: 12px;
+    }
+
+    .resumo-grid,
+    .admin-grid {
+        grid-template-columns: 1fr;
     }
 
     th, td {
